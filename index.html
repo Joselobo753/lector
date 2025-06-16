@@ -7,17 +7,32 @@
   <style>
     video, canvas { width: 100%; max-width: 400px; }
     #resultado { font-size: 1.5em; margin-top: 10px; white-space: pre-wrap; }
-    #debug { margin-top: 1em; font-family: monospace; color: #555; font-size: 0.9em; white-space: pre-wrap; }
+    #modoBtn {
+      font-size: 1.5em;
+      padding: 1em;
+      margin-top: 20px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      width: 90%;
+      max-width: 400px;
+    }
   </style>
 </head>
 <body>
   <h1>Lector de Patentes</h1>
+
   <video id="video" autoplay playsinline></video>
+  <canvas id="canvas" style="display:none"></canvas>
+
   <button onclick="capturar()">Leer Patente</button>
   <button onclick="cambiarCamara()">Cambiar Cámara</button>
-  <canvas id="canvas" style="display:none"></canvas>
+  <button id="modoBtn" onclick="toggleModo()">Ingresar escrita</button>
+
   <div id="resultado">Patente: -</div>
-  <div id="debug"></div>
+  <div id="debug" style="white-space: pre-wrap; font-size: 0.9em; color: #444; margin-top: 20px;"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4"></script>
   <script>
@@ -25,9 +40,18 @@
     const canvas = document.getElementById('canvas');
     const resultado = document.getElementById('resultado');
     const debug = document.getElementById('debug');
+    const modoBtn = document.getElementById('modoBtn');
 
     let currentStream;
     let useRearCamera = true;
+    let modoManual = false;
+
+    function toggleModo() {
+      modoManual = !modoManual;
+      modoBtn.textContent = modoManual ? 'Leer por cámara' : 'Ingresar escrita';
+      resultado.textContent = modoManual ? 'Modo ingreso manual activado' : 'Modo cámara activado';
+      // Aquí podrías mostrar un input si querés permitir escribir manualmente
+    }
 
     async function iniciarCamara() {
       if (currentStream) {
@@ -64,16 +88,18 @@
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
       const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
+      debug.textContent = `OCR:
+${text}`;
 
       const lineas = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+      debug.textContent += `\nLíneas detectadas:\n${JSON.stringify(lineas)}`;
+
       let patenteDetectada = null;
-      let debugMsg = `OCR completo:\n${text}\n\nLineas detectadas:\n${lineas.join('\n')}`;
 
       for (const linea of lineas) {
         const matchHorizontal = linea.match(/[A-Z]{2,3}\s?\d{3}\s?[A-Z]{2}/);
         if (matchHorizontal) {
           patenteDetectada = matchHorizontal[0].replace(/\s+/g, '');
-          debugMsg += `\n\nFormato horizontal detectado en linea: ${linea}`;
           break;
         }
       }
@@ -81,12 +107,8 @@
       if (!patenteDetectada && lineas.length >= 2) {
         const primera = lineas[0].replace(/\s+/g, '').toUpperCase();
         const segunda = lineas[1].replace(/\s+/g, '').toUpperCase();
-        debugMsg += `\n\nIntentando formato moto: ${primera} + ${segunda}`;
-        if (/^[A-Z]\d{2,3}$/.test(primera) && /^\d?[A-Z]{3}$/.test(segunda)) {
+        if (/^[A-Z]\d{2,3}$/.test(primera) && /^\d?[A-Z]{3,4}$/.test(segunda)) {
           patenteDetectada = primera + segunda;
-          debugMsg += `\nFormato moto detectado.`;
-        } else {
-          debugMsg += `\nNo coincide con el formato moto.`;
         }
       }
 
@@ -95,9 +117,8 @@
         buscarPatenteEnDB(patenteDetectada);
       } else {
         resultado.textContent = 'No se pudo detectar una patente.';
+        debug.textContent += "\nNo se encontró coincidencia con patrones conocidos.";
       }
-
-      debug.textContent = debugMsg;
     }
 
     function buscarPatenteEnDB(patente) {
@@ -105,7 +126,7 @@
         'AB123CD': { propietario: 'Juan Pérez', vehiculo: 'Ford Focus 2017' },
         'XYZ789': { propietario: 'María López', vehiculo: 'Chevrolet Onix 2020' },
         'A123BCD': { propietario: 'Carlos Gómez', vehiculo: 'Honda CB190R 2022' },
-        'A165JDG': { propietario: 'Ejemplo Real', vehiculo: 'Ejemplo Moto Honda XR150' }
+        'A165JDG': { propietario: 'Test Moto', vehiculo: 'Ejemplo patente vertical' }
       };
       const datos = db[patente];
       if (datos) {
