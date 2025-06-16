@@ -7,6 +7,7 @@
   <style>
     video, canvas { width: 100%; max-width: 400px; }
     #resultado { font-size: 1.5em; margin-top: 10px; white-space: pre-wrap; }
+    #errores { color: red; white-space: pre-wrap; font-family: monospace; margin-top: 10px; }
   </style>
 </head>
 <body>
@@ -16,12 +17,14 @@
   <button onclick="cambiarCamara()">Cambiar Cámara</button>
   <canvas id="canvas" style="display:none"></canvas>
   <div id="resultado">Patente: -</div>
+  <div id="errores"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4"></script>
   <script>
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const resultado = document.getElementById('resultado');
+    const errores = document.getElementById('errores');
 
     let currentStream;
     let useRearCamera = true;
@@ -55,6 +58,8 @@
     iniciarCamara();
 
     async function capturar() {
+      errores.textContent = '';
+      resultado.textContent = 'Procesando...';
       const ctx = canvas.getContext('2d');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -65,21 +70,24 @@
       const lineas = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
       let patenteDetectada = null;
 
-      // Buscar por formato horizontal tradicional o de moto (dos líneas)
+      errores.textContent += `OCR Detectado:\n${lineas.join('\n')}\n`;
+
       for (const linea of lineas) {
         const matchHorizontal = linea.match(/[A-Z]{2,3}\s?\d{3}\s?[A-Z]{2}/);
         if (matchHorizontal) {
           patenteDetectada = matchHorizontal[0].replace(/\s+/g, '');
+          errores.textContent += `Detectado como formato horizontal: ${patenteDetectada}\n`;
           break;
         }
       }
 
-      // Si no encontró horizontal, intenta formato vertical de moto (ej. A12 3BCD)
       if (!patenteDetectada && lineas.length >= 2) {
         const primera = lineas[0].replace(/\s+/g, '').toUpperCase();
         const segunda = lineas[1].replace(/\s+/g, '').toUpperCase();
+        errores.textContent += `Intento formato moto: primera='${primera}' segunda='${segunda}'\n`;
         if (/^[A-Z]\d{2,3}$/.test(primera) && /^\d?[A-Z]{3}$/.test(segunda)) {
           patenteDetectada = primera + segunda;
+          errores.textContent += `Detectado como patente de moto: ${patenteDetectada}\n`;
         }
       }
 
@@ -88,6 +96,7 @@
         buscarPatenteEnDB(patenteDetectada);
       } else {
         resultado.textContent = 'No se pudo detectar una patente.';
+        errores.textContent += 'ERROR: Ningún formato coincidió.\n';
       }
     }
 
