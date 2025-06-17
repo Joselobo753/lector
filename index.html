@@ -127,21 +127,54 @@ Patente: -</div>
       }
     }
 
-    function buscarPatenteEnDB(patente) {
-  fetch(`https://script.google.com/macros/s/AKfycbxCmwFS60F96Wdi4babiF7OJesjRcJsNZVzmZUJfADjP42pcanWoQPOlRzn1jVh9Z6C/exec?patente=${patente}`)
-    .then(res => res.json())
+ 
+function buscarPatenteEnDB(patente) {
+  console.log("Buscando patente:", patente);
+
+  fetch("https://script.google.com/macros/s/AKfycbyEzQW3T9V81EOMjCmuYjiX5_VJlVHs2y3VvOjroMpNfEFpLAuHM-jVP6-VmhJkYOUI/exec")
+    .then(response => {
+      console.log("Respuesta HTTP:", response);
+      return response.json();
+    })
     .then(data => {
-      if (data && data.nombre) {
-        resultado.textContent += `\nNombre: ${data.nombre}\nTrabajo: ${data.trabajo}\nÚltimo pago: ${data.ultimoPago}`;
+      console.log("Datos recibidos:", data);
+
+      const normalizada = patente.toUpperCase().replace(/[^A-Z0-9]/g, "");
+      const coincidencia = data.find(row => {
+        if (!row.id) return false;
+        const idNormalizada = row.id.toUpperCase().replace(/[^A-Z0-9]/g, "");
+        return idNormalizada === normalizada;
+      });
+
+      if (coincidencia) {
+        resultado.textContent += `\nNombre: ${coincidencia.Nombre}`;
+        resultado.textContent += `\nPatente: ${coincidencia.id}`;
+        resultado.textContent += `\nVencimiento: ${coincidencia.vencimiento}`;
+
+        const pagos = coincidencia.pagos;
+        if (pagos && typeof pagos === 'object') {
+          const meses = Object.keys(pagos);
+          if (meses.length > 0) {
+            const ultimoMes = meses[meses.length - 1];
+            resultado.textContent += `\nÚltimo pago:  ${pagos[ultimoMes]}`;
+          } else {
+            resultado.textContent += `\nÚltimo pago: No hay pagos registrados.`;
+          }
+        } else {
+          resultado.textContent += `\nÚltimo pago: Información no disponible.`;
+        }
       } else {
-        resultado.textContent += '\nNo encontrada en base de datos.';
+        console.warn("Patente no encontrada o datos incompletos.");
+        resultado.textContent += '\nNo encontrada en base de datos o formato inesperado.';
       }
     })
-    .catch(err => {
-      resultado.textContent += '\nError al consultar la base de datos.';
-      console.error(err);
+    .catch(error => {
+      console.error("Error en la solicitud o en el procesamiento de datos:", error);
+      resultado.textContent += '\nError al consultar base de datos.';
     });
 }
+
+
 
   </script>
 </body>
