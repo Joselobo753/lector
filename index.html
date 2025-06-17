@@ -128,19 +128,21 @@ Patente: -</div>
     }
 
     function buscarPatenteEnDB(patente) {
-      const db = {
-        'AB123CD': { propietario: 'Juan Pérez', vehiculo: 'Ford Focus 2017' },
-        'XYZ789': { propietario: 'María López', vehiculo: 'Chevrolet Onix 2020' },
-        'A123BCD': { propietario: 'Carlos Gómez', vehiculo: 'Honda CB190R 2022' },
-        'A165JDG': { propietario: 'Pedro Ruiz', vehiculo: 'Zanella RX150 2021' }
-      };
-      const datos = db[patente];
-      if (datos) {
-        resultado.textContent += `\nPropietario: ${datos.propietario}\nVehículo: ${datos.vehiculo}`;
+  fetch(`https://script.google.com/macros/s/AKfycbxCmwFS60F96Wdi4babiF7OJesjRcJsNZVzmZUJfADjP42pcanWoQPOlRzn1jVh9Z6C/exec?patente=${patente}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data && data.nombre) {
+        resultado.textContent += `\nNombre: ${data.nombre}\nTrabajo: ${data.trabajo}\nÚltimo pago: ${data.ultimoPago}`;
       } else {
         resultado.textContent += '\nNo encontrada en base de datos.';
       }
-    }
+    })
+    .catch(err => {
+      resultado.textContent += '\nError al consultar la base de datos.';
+      console.error(err);
+    });
+}
+
   </script>
 </body>
 </html>
